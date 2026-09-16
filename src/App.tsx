@@ -18,12 +18,13 @@ import { SoundAwarenessPage } from './pages/SoundAwarenessPage';
 import { UnderstandPage } from './pages/UnderstandPage';
 import { QuickMessagesPage } from './pages/QuickMessagesPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
   
-  // High-level navigation state: 'landing' | 'onboarding' | 'auth' | 'app'
-  const [viewMode, setViewMode] = useState<'landing' | 'onboarding' | 'auth' | 'app'>('app');
+  // High-level navigation state: 'landing' | 'onboarding' | 'auth' | 'app' | 'admin'
+  const [viewMode, setViewMode] = useState<'landing' | 'onboarding' | 'auth' | 'app' | 'admin'>('auth');
   // App active tab: 'home' | 'communicate' | 'speech-to-text' | 'text-to-speech' | 'sign-to-text' | 'awareness' | 'understand' | 'quick-messages' | 'profile'
   const [currentTab, setCurrentTab] = useState<string>('home');
   // Emergency full-screen modal
@@ -31,14 +32,24 @@ function AppContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0A1128] flex items-center justify-center text-white">
-        <div className="text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto text-xl font-bold animate-pulse">
-            S
+      <div className="min-h-screen bg-[#070D1E] flex items-center justify-center text-white">
+        <div className="text-center space-y-4">
+          <div className="relative inline-flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/30 via-purple-500/30 to-blue-500/30 rounded-full blur-xl scale-125 animate-pulse" />
+            <img
+              src="/samnya-icon.png"
+              alt="Loading SAMNYA"
+              className="relative w-16 h-16 object-contain drop-shadow-xl animate-bounce"
+            />
           </div>
-          <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
-            Loading SAMNYA...
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm font-extrabold tracking-widest text-slate-200 uppercase">
+              SAMNYA
+            </p>
+            <p className="text-[11px] font-medium text-slate-400">
+              Every voice. Every expression.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -48,7 +59,7 @@ function AppContent() {
   if (viewMode === 'landing') {
     return (
       <LandingPage
-        onGetStarted={() => setViewMode('onboarding')}
+        onGetStarted={() => setViewMode('auth')}
         onTryCommunicationMode={() => {
           setViewMode('app');
           setCurrentTab('communicate');
@@ -67,17 +78,32 @@ function AppContent() {
     );
   }
 
-  // 3. Auth Page Flow
-  if (viewMode === 'auth') {
+  // 3. Auth Page Flow (User & Admin Portals with Admin Credentials Ready)
+  if (viewMode === 'auth' || !user) {
     return (
       <AuthPage
-        onSuccess={() => setViewMode('app')}
+        onSuccess={(role) => {
+          if (role === 'admin') {
+            setViewMode('admin');
+          } else {
+            setViewMode('app');
+          }
+        }}
         onBack={() => setViewMode('app')}
       />
     );
   }
 
-  // 4. Main Application View
+  // 4. Admin Dashboard View
+  if (viewMode === 'admin') {
+    return (
+      <AdminDashboardPage
+        onBackToApp={() => setViewMode('app')}
+      />
+    );
+  }
+
+  // 5. Main Application View
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#070D1E] text-slate-900 dark:text-slate-100 flex flex-col justify-between">
       
@@ -86,6 +112,8 @@ function AppContent() {
         currentTab={currentTab}
         onNavigate={(tab) => setCurrentTab(tab)}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
+        onOpenAdmin={() => setViewMode('admin')}
+        onOpenAuth={() => setViewMode('auth')}
       />
 
       {/* Main Content Area */}
@@ -113,6 +141,7 @@ function AppContent() {
           <ProfilePage
             onGoToAuth={() => setViewMode('auth')}
             onGoToOnboarding={() => setViewMode('onboarding')}
+            onGoToAdmin={() => setViewMode('admin')}
             onNavigate={(tab) => setCurrentTab(tab)}
           />
         )}

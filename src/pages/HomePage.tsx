@@ -28,20 +28,28 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenEmergency 
         <div className="absolute bottom-0 left-0 w-60 h-60 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
         
         <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30">
-            <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-            <span>AI Accessibility Bridge</span>
+          <div className="flex items-center justify-between gap-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span>AI Accessibility Bridge</span>
+            </div>
+            <img 
+              src="/samnya-icon.png" 
+              alt="SAMNYA Emblem" 
+              className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-lg"
+            />
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
-            SAMNYA
-          </h1>
+          <div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight flex items-center gap-3">
+              SAMNYA
+            </h1>
+            <p className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-400 via-teal-300 to-indigo-300 bg-clip-text text-transparent mt-1">
+              Every voice. Every expression.
+            </p>
+          </div>
 
-          <p className="text-lg sm:text-xl font-medium text-slate-300">
-            Every voice. Every expression.
-          </p>
-
-          <p className="text-sm sm:text-base text-slate-400 max-w-xl leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
             AI-powered communication for people who communicate differently. Bridging Deaf, hard-of-hearing, non-speaking, and conventional speakers into one shared understanding.
           </p>
 
@@ -62,6 +70,57 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenEmergency 
               <span>Quick Cards</span>
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* The 5 User Personas Quick Navigator */}
+      <section className="bg-white dark:bg-[#0F172A] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-teal-500" />
+              <span>Tailored for 5 Accessibility Personas</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Click any profile to access its personalized bridge features:
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigate('profile')}
+            className="text-xs font-bold text-blue-600 dark:text-teal-400 hover:underline hidden sm:inline"
+          >
+            Manage Profiles →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+          {[
+            { emoji: '🧏', title: 'Deaf Users', desc: 'Sign to text & visual communication', tab: 'sign-to-text', color: 'border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20' },
+            { emoji: '🔇', title: 'Non-Speaking', desc: 'Text-to-speech & quick flashcards', tab: 'text-to-speech', color: 'border-teal-500/40 bg-teal-50/50 dark:bg-teal-950/20' },
+            { emoji: '🗣️', title: 'Speech-Impaired', desc: 'Speech assist & phrase completion', tab: 'quick-messages', color: 'border-purple-500/40 bg-purple-50/50 dark:bg-purple-950/20' },
+            { emoji: '👂', title: 'Hard-of-Hearing', desc: 'Live captions & sound alerts', tab: 'speech-to-text', color: 'border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20' },
+            { emoji: '👤', title: 'Hearing / Speaking', desc: 'Two-way conversational bridge', tab: 'communicate', color: 'border-cyan-500/40 bg-cyan-50/50 dark:bg-cyan-950/20' },
+          ].map((persona, i) => (
+            <button
+              key={i}
+              onClick={() => onNavigate(persona.tab)}
+              className={`p-3.5 rounded-2xl border ${persona.color} text-left flex flex-col justify-between hover:scale-102 transition-transform shadow-sm group`}
+            >
+              <div>
+                <span className="text-2xl mb-1 block">{persona.emoji}</span>
+                <div className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-teal-400 transition-colors">
+                  {persona.title}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                  {persona.desc}
+                </div>
+              </div>
+              <div className="text-[10px] font-bold text-blue-600 dark:text-teal-400 mt-2 flex items-center gap-1">
+                <span>Open Tool</span>
+                <span>→</span>
+              </div>
+            </button>
+          ))}
         </div>
       </section>
 

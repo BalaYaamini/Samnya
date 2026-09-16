@@ -1,5 +1,6 @@
 import React from 'react';
-import { Sparkles, ArrowRight, MessageSquare, HandMetal, Volume2, ShieldCheck, Heart } from 'lucide-react';
+import { Sparkles, ArrowRight, MessageSquare } from 'lucide-react';
+import { Logo } from '../components/common/Logo';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -12,14 +13,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onTryCom
       
       {/* Top Simple Brand Bar */}
       <header className="max-w-5xl mx-auto w-full px-6 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 font-bold text-xl">
-            S
-          </div>
-          <div>
-            <span className="font-extrabold text-xl tracking-tight">SAMNYA</span>
-          </div>
-        </div>
+        <Logo variant="combo" size="sm" />
 
         <button
           onClick={onGetStarted}
@@ -30,18 +24,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onTryCom
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-3xl mx-auto px-6 py-12 sm:py-20 text-center space-y-8 my-auto">
+      <main className="max-w-3xl mx-auto px-6 py-8 sm:py-16 text-center space-y-7 my-auto">
         
+        {/* Emblem Hero Showcase */}
+        <div className="flex justify-center">
+          <div className="relative group">
+            <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-blue-500/20 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500 pointer-events-none" />
+            <img
+              src="/samnya-icon.png"
+              alt="SAMNYA Emblem"
+              className="relative w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-xl transform group-hover:scale-105 transition-all duration-300"
+            />
+          </div>
+        </div>
+
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900 shadow-sm">
           <Sparkles className="w-4 h-4 text-teal-500" />
           <span>Accessibility & Communication Platform</span>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-slate-900 dark:text-white">
             SAMNYA
           </h1>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-600 dark:text-teal-400">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-500 bg-clip-text text-transparent">
             Every voice. Every expression.
           </h2>
         </div>
@@ -85,10 +91,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onTryCom
       </main>
 
       {/* Footer */}
-      <footer className="max-w-5xl mx-auto w-full px-6 py-6 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
-        SAMNYA MVP • Designed for Mobile & Web Accessibility
+      <footer className="max-w-5xl mx-auto w-full px-6 py-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2">
+          <img src="/samnya-icon.png" alt="SAMNYA" className="w-5 h-5 object-contain" />
+          <span className="font-bold text-slate-700 dark:text-slate-200">SAMNYA</span>
+          <span>• Every voice. Every expression.</span>
+        </div>
+        <div>MVP • Designed for Mobile & Web Accessibility</div>
       </footer>
 
     </div>
   );
 };
+

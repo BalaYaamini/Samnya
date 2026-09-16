@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { CommunicationMethod } from '../types';
-import { ArrowRight, Check, Sparkles, UserCheck } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
+import { Logo } from '../components/common/Logo';
 
 interface OnboardingPageProps {
   onComplete: () => void;
@@ -31,7 +32,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete, onGo
 
   const handleFinish = (asGuest: boolean) => {
     if (asGuest) {
-      continueAsGuest(selectedMethods);
+      continueAsGuest('deaf', selectedMethods);
     } else {
       updateCommunicationPreferences(selectedMethods);
     }
@@ -43,16 +44,8 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete, onGo
       <div className="w-full max-w-md bg-white dark:bg-[#0F172A] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-slate-800 transition-colors">
         
         {/* Logo and Brand */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 font-bold text-xl">
-            S
-          </div>
-          <div>
-            <span className="font-extrabold text-xl text-slate-900 dark:text-white">SAMNYA</span>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Every voice. Every expression.
-            </p>
-          </div>
+        <div className="mb-6">
+          <Logo variant="combo" size="sm" showSubtitle={true} glow={true} />
         </div>
 
         {/* Question Header */}

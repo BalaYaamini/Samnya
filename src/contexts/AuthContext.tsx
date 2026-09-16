@@ -1,15 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService, AuthSessionUser } from '../services/auth/authService';
-import { CommunicationMethod } from '../types';
+import { CommunicationMethod, UserType, UserRole, USER_PERSONAS } from '../types';
 
 interface AuthContextType {
   user: AuthSessionUser | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, name: string, preferences?: CommunicationMethod[]) => Promise<{ success: boolean; error?: string }>;
-  continueAsGuest: (preferences?: CommunicationMethod[]) => void;
+  signIn: (email: string, password: string, forcedRole?: UserRole) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, name: string, userType?: UserType, preferences?: CommunicationMethod[]) => Promise<{ success: boolean; error?: string }>;
+  signInAsDemoPersona: (userType: UserType) => void;
+  signInAsAdmin: () => void;
+  continueAsGuest: (userType?: UserType, preferences?: CommunicationMethod[]) => void;
   signOut: () => Promise<void>;
   updateCommunicationPreferences: (preferences: CommunicationMethod[]) => Promise<void>;
+  switchUserType: (userType: UserType) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,9 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initSession();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, forcedRole?: UserRole) => {
     setIsLoading(true);
-    const res = await authService.signIn(email, password);
+    const res = await authService.signIn(email, password, forcedRole);
     setIsLoading(false);
     if (res.user) {
       setUser(res.user);
@@ -43,9 +46,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: res.error || 'Sign in failed' };
   };
 
-  const signUp = async (email: string, password: string, name: string, preferences?: CommunicationMethod[]) => {
+  const signUp = async (
+    email: string, 
+    password: string, 
+    name: string, 
+    userType: UserType = 'deaf',
+    preferences?: CommunicationMethod[]
+  ) => {
     setIsLoading(true);
-    const res = await authService.signUp(email, password, name, preferences);
+    const res = await authService.signUp(email, password, name, userType, preferences);
     setIsLoading(false);
     if (res.user) {
       setUser(res.user);
@@ -54,8 +63,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: res.error || 'Sign up failed' };
   };
 
-  const continueAsGuest = (preferences: CommunicationMethod[] = ['typing']) => {
-    const guestUser = authService.createGuestSession(preferences);
+  const signInAsDemoPersona = (userType: UserType) => {
+    const demoUser = authService.createDemoPersonaSession(userType);
+    setUser(demoUser);
+  };
+
+  const signInAsAdmin = () => {
+    const adminUser = authService.createAdminSession();
+    setUser(adminUser);
+  };
+
+  const continueAsGuest = (userType: UserType = 'deaf', preferences?: CommunicationMethod[]) => {
+    const guestUser = authService.createGuestSession(userType, preferences);
     setUser(guestUser);
   };
 
@@ -69,7 +88,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = { ...user, communicationPreferences: preferences };
     setUser(updated);
     if (!user.isGuest) {
-      await authService.upsertProfile(user.id, user.name, user.email, preferences);
+      await authService.upsertProfile(user.id, user.name, user.email, user.userType, user.role, preferences);
+    } else {
+      localStorage.setItem('samnya_guest_session', JSON.stringify(updated));
+    }
+  };
+
+  const switchUserType = async (userType: UserType) => {
+    if (!user) return;
+    const persona = USER_PERSONAS[userType];
+    const updated: AuthSessionUser = {
+      ...user,
+      userType,
+      communicationPreferences: persona ? persona.recommendedMethods : user.communicationPreferences
+    };
+    setUser(updated);
+    if (!user.isGuest) {
+      await authService.upsertProfile(user.id, user.name, user.email, userType, user.role, updated.communicationPreferences);
     } else {
       localStorage.setItem('samnya_guest_session', JSON.stringify(updated));
     }
@@ -81,9 +116,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       signIn,
       signUp,
+      signInAsDemoPersona,
+      signInAsAdmin,
       continueAsGuest,
       signOut,
-      updateCommunicationPreferences
+      updateCommunicationPreferences,
+      switchUserType
     }}>
       {children}
     </AuthContext.Provider>

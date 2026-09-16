@@ -1,18 +1,29 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { isSupabaseConfigured } from '../../lib/supabase';
-import { Eye, ShieldAlert, Sparkles, User as UserIcon } from 'lucide-react';
+import { USER_PERSONAS } from '../../types';
+import { Eye, ShieldAlert, Sparkles, User as UserIcon, ShieldCheck, LogIn } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface HeaderProps {
   currentTab: string;
   onNavigate: (tab: string) => void;
   onOpenEmergency: () => void;
+  onOpenAdmin?: () => void;
+  onOpenAuth?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentTab, onNavigate, onOpenEmergency }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  currentTab, 
+  onNavigate, 
+  onOpenEmergency,
+  onOpenAdmin,
+  onOpenAuth
+}) => {
   const { settings, setTextSize, toggleHighContrast } = useSettings();
   const { user } = useAuth();
+
+  const currentPersona = user?.userType ? USER_PERSONAS[user.userType] : USER_PERSONAS.deaf;
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#0A1128]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -21,30 +32,48 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onNavigate, onOpenEm
         {/* Brand */}
         <button 
           onClick={() => onNavigate('home')} 
-          className="flex items-center gap-3 text-left group focus:outline-none"
+          className="flex items-center text-left group focus:outline-none transition-transform group-hover:scale-102"
           aria-label="SAMNYA Home"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 via-blue-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            <span className="font-bold text-lg tracking-wider">S</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">
-                SAMNYA
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
-                MVP
-              </span>
-            </div>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 -mt-0.5 hidden xs:block">
-              Every voice. Every expression.
-            </p>
-          </div>
+          <Logo
+            variant="combo"
+            size="sm"
+            badge="MVP"
+            showSubtitle={true}
+            glow={true}
+            className="group-hover:opacity-95"
+          />
         </button>
 
         {/* Accessibility Quick Actions & Profile */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           
+          {/* Active Persona Pill / Switcher */}
+          <button
+            onClick={() => onOpenAuth ? onOpenAuth() : onNavigate('profile')}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all ${
+              user?.role === 'admin'
+                ? 'bg-amber-100 dark:bg-amber-950/70 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                : 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-900 text-blue-900 dark:text-blue-200'
+            }`}
+            title="Active Accessibility Persona (Click to Switch)"
+          >
+            <span>{user?.role === 'admin' ? '🛡️' : currentPersona.emoji}</span>
+            <span className="hidden md:inline">{user?.role === 'admin' ? 'Admin Portal' : currentPersona.title}</span>
+          </button>
+
+          {/* Admin Dashboard Quick Link (if Admin) */}
+          {user?.role === 'admin' && onOpenAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-black text-xs shadow-sm transition-colors"
+              title="Open Admin Dashboard"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </button>
+          )}
+
           {/* Text Size Switcher */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
             <button
@@ -101,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onNavigate, onOpenEm
           >
             <UserIcon className="w-3.5 h-3.5 text-blue-500" />
             <span className="max-w-[70px] truncate hidden md:inline">
-              {user?.name || 'Guest'}
+              {user?.name?.split(' ')[0] || 'Guest'}
             </span>
           </button>
         </div>

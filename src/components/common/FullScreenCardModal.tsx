@@ -54,8 +54,9 @@ export const FullScreenCardModal: React.FC<FullScreenCardModalProps> = ({ messag
       </div>
 
       {/* Bottom Hint */}
-      <div className="text-center text-xs font-semibold text-slate-400 tracking-wide">
-        SAMNYA — Communication Bridge
+      <div className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400 tracking-wide">
+        <img src="/samnya-icon.png" alt="SAMNYA" className="w-4 h-4 object-contain" />
+        <span>SAMNYA — Communication Bridge</span>
       </div>
     </div>
   );
