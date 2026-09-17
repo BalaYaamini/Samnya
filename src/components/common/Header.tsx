@@ -130,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <UserIcon className="w-3.5 h-3.5 text-blue-500" />
             <span className="max-w-[70px] truncate hidden md:inline">
-              {user?.name?.split(' ')[0] || 'Guest'}
+              {user?.name?.split(' ')[0] || 'Profile'}
             </span>
           </button>
         </div>

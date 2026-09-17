@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { USER_PERSONAS } from '../types';
 import { 
   MessageSquare, 
   Mic, 
@@ -19,6 +21,9 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenEmergency }) => {
+  const { user } = useAuth();
+  const currentPersona = user?.userType ? USER_PERSONAS[user.userType] : USER_PERSONAS.deaf;
+
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto">
       
@@ -28,16 +33,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onOpenEmergency 
         <div className="absolute bottom-0 left-0 w-60 h-60 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
         
         <div className="relative z-10 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30">
               <Sparkles className="w-3.5 h-3.5 text-teal-400" />
               <span>AI Accessibility Bridge</span>
             </div>
-            <img 
-              src="/samnya-icon.png" 
-              alt="SAMNYA Emblem" 
-              className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-lg"
-            />
+
+            {user && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 text-white border border-white/15 backdrop-blur shadow-sm">
+                <span className="text-base">{user.role === 'admin' ? '🛡️' : currentPersona.emoji}</span>
+                <span>{user.name}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/40 text-blue-200 uppercase tracking-wider font-extrabold">
+                  {user.role === 'admin' ? 'Admin' : currentPersona.title}
+                </span>
+              </div>
+            )}
           </div>
 
           <div>

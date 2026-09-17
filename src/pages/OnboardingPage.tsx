@@ -10,7 +10,7 @@ interface OnboardingPageProps {
 }
 
 export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete, onGoToAuth }) => {
-  const { continueAsGuest, updateCommunicationPreferences } = useAuth();
+  const { updateCommunicationPreferences } = useAuth();
   const [selectedMethods, setSelectedMethods] = useState<CommunicationMethod[]>(['typing']);
 
   const options: { id: CommunicationMethod; emoji: string; label: string; desc: string }[] = [
@@ -30,12 +30,8 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete, onGo
     }
   };
 
-  const handleFinish = (asGuest: boolean) => {
-    if (asGuest) {
-      continueAsGuest('deaf', selectedMethods);
-    } else {
-      updateCommunicationPreferences(selectedMethods);
-    }
+  const handleFinish = () => {
+    updateCommunicationPreferences(selectedMethods);
     onComplete();
   };
 
@@ -96,18 +92,11 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete, onGo
         {/* Actions */}
         <div className="space-y-3">
           <button
-            onClick={() => handleFinish(false)}
+            onClick={handleFinish}
             className="w-full py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all active:scale-98"
           >
             <span>Continue</span>
             <ArrowRight className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => handleFinish(true)}
-            className="w-full py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-sm transition-all"
-          >
-            Continue as Guest
           </button>
         </div>
 

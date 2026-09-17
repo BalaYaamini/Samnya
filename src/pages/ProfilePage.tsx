@@ -101,20 +101,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {user?.name || 'Guest Explorer'}
+                {user?.name || 'SAMNYA User'}
               </h2>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                 user?.role === 'admin'
                   ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-                  : user?.isGuest 
-                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' 
-                    : 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300'
+                  : 'bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300'
               }`}>
-                {user?.role === 'admin' ? 'Admin Portal Authority' : user?.isGuest ? 'Guest Session' : 'Registered User'}
+                {user?.role === 'admin' ? 'Admin Portal Authority' : 'Active Account'}
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {user?.email || 'guest@samnya.local'}
+              {user?.email || 'user@samnya.local'}
             </p>
           </div>
         </div>
@@ -130,22 +128,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </button>
           )}
 
-          {user?.isGuest ? (
-            <button
-              onClick={onGoToAuth}
-              className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all"
-            >
-              Sign In / Switch Account
-            </button>
-          ) : (
-            <button
-              onClick={signOut}
-              className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 font-bold text-xs transition-colors flex items-center gap-1.5"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Log Out</span>
-            </button>
-          )}
+          <button
+            onClick={signOut}
+            className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 font-bold text-xs transition-colors flex items-center gap-1.5"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Log Out</span>
+          </button>
         </div>
       </div>
 
@@ -355,7 +344,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
           {isSupabaseConfigured
             ? '✅ Connected to live Supabase Auth and PostgreSQL instance.'
-            : '⚡ Running in zero-friction Local Guest Mode. You can connect to your Supabase project at any time by configuring VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env and running the included supabase/schema.sql migration.'}
+            : '⚡ Running in zero-friction Local Offline Mode. You can connect to your Supabase project at any time by configuring VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env and running the included supabase/schema.sql migration.'}
         </p>
       </div>
 
