@@ -88,7 +88,7 @@ export const SpeechToTextPage: React.FC<SpeechToTextPageProps> = ({ onNavigate }
       <div className="text-center space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Real-time Voice Recognition</span>
+          <span>Live Captions</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
           Speech → Text
@@ -105,7 +105,7 @@ export const SpeechToTextPage: React.FC<SpeechToTextPageProps> = ({ onNavigate }
           <div>
             <p className="font-bold">Notice on Browser Speech Support:</p>
             <p className="mt-0.5 text-amber-800 dark:text-amber-300">
-              Web Speech Recognition is not natively exposed in this browser environment. SAMNYA has activated the <strong>Interactive Simulated Voice Stream</strong> so you can fully test the transcription workflow, copy features, and conversation timeline.
+              Web Speech Recognition is not natively exposed in this browser environment. SAMNYA has activated the <strong>Simulated mode for testing</strong> so you can fully test the transcription workflow, copy features, and conversation timeline.
             </p>
           </div>
         </div>
@@ -177,7 +177,7 @@ export const SpeechToTextPage: React.FC<SpeechToTextPageProps> = ({ onNavigate }
                 className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 text-xs font-semibold flex items-center gap-1.5 transition-colors"
               >
                 <Volume2 className="w-3.5 h-3.5 text-blue-500" />
-                <span>Repeat Voice</span>
+                <span>Read Aloud</span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -202,7 +202,7 @@ export const SpeechToTextPage: React.FC<SpeechToTextPageProps> = ({ onNavigate }
                   className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
                 >
                   {added ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                  <span>{added ? 'Added to Bridge' : 'Add to Bridge'}</span>
+                  <span>{added ? 'Added' : 'Add to Conversation'}</span>
                 </button>
               </div>
             </div>
@@ -215,7 +215,7 @@ export const SpeechToTextPage: React.FC<SpeechToTextPageProps> = ({ onNavigate }
             onClick={() => onNavigate('communicate')}
             className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
           >
-            Switch to Two-Way Communication Mode →
+            Go to Two-Way Communicate →
           </button>
         </div>
 

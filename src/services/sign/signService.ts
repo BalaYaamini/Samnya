@@ -1,23 +1,28 @@
-// Sign Recognition Service Interface and Camera Abstraction
-// Note: Initial MVP uses clean service abstraction ready for computer-vision model integration.
-
 import { SUPPORTED_SIGNS } from '../../data/mockData';
 import { SupportedSign } from '../../types';
+import { ensureMediaPipeLoaded, createHandsInstance, MPHandsInstance, MPHandsResults } from './mediapipeLoader';
+import { classifySign, NormalizedLandmark } from './handClassifier';
 
 export interface SignRecognitionResult {
-  sign: SupportedSign;
-  confidence: number; // e.g. 94%
+  sign: SupportedSign | null;
+  confidence: number;
   timestamp: number;
   landmarksDetected: boolean;
+  rawLandmarks?: NormalizedLandmark[];
+  holdingSignId?: string | null; // Indicates which sign is currently being held but not yet confirmed
 }
 
 export class SignRecognitionService {
   private mediaStream: MediaStream | null = null;
   private isAnalyzing: boolean = false;
+  private hands: MPHandsInstance | null = null;
+  private onResultCallback: ((result: SignRecognitionResult) => void) | null = null;
+  private history: { signId: string | null; time: number }[] = [];
+  private loopActive = false;
 
   public async requestCamera(): Promise<{ success: boolean; stream?: MediaStream; error?: string }> {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return { success: false, error: 'Camera access is not supported in this browser. You can still use manual gesture selection.' };
+      return { success: false, error: 'Camera access is not supported in this browser.' };
     }
 
     try {
@@ -35,15 +40,16 @@ export class SignRecognitionService {
       console.warn('Camera request error:', err);
       let message = 'Camera permission denied or camera unavailable.';
       if (err.name === 'NotAllowedError') {
-        message = 'Camera permission was denied. Please allow camera access in your browser settings to test Sign → Text.';
+        message = 'Camera permission was denied. Please allow camera access in your browser settings to use Sign → Text.';
       } else if (err.name === 'NotFoundError') {
-        message = 'No camera device found on this system. You can still test signs with simulated camera detection.';
+        message = 'No camera device found on this system.';
       }
       return { success: false, error: message };
     }
   }
 
   public stopCamera() {
+    this.loopActive = false;
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
       this.mediaStream = null;
@@ -55,37 +61,116 @@ export class SignRecognitionService {
     return SUPPORTED_SIGNS;
   }
 
-  /**
-   * Prototype sign analysis step.
-   * Connects to camera stream landmarks in production.
-   * Clearly marked as Prototype AI Model Abstraction.
-   */
-  public async detectSign(preferredSignId?: string): Promise<SignRecognitionResult> {
+  public async initializeMediaPipe(): Promise<void> {
+    if (this.hands) return; // Already initialized
+    
+    await ensureMediaPipeLoaded();
+    this.hands = createHandsInstance();
+    this.hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 0,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    this.hands.onResults((results) => this.processResults(results));
+  }
+
+  public setOnResult(cb: (r: SignRecognitionResult) => void) {
+    this.onResultCallback = cb;
+  }
+
+  public async startDetectionLoop(videoElement: HTMLVideoElement) {
+    if (!this.hands) {
+      throw new Error("MediaPipe not initialized");
+    }
+    
+    this.loopActive = true;
     this.isAnalyzing = true;
     
-    // Simulate real neural network inference latency (500-900ms)
-    await new Promise(resolve => setTimeout(resolve, 650));
+    const processFrame = async () => {
+      if (!this.loopActive || !this.hands || !videoElement) {
+        return;
+      }
+      
+      if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA
+        try {
+          await this.hands.send({ image: videoElement });
+        } catch (e) {
+          console.error("MediaPipe send error:", e);
+        }
+      }
+      
+      if (this.loopActive) {
+        requestAnimationFrame(processFrame);
+      }
+    };
+    
+    processFrame();
+  }
 
-    let chosenSign: SupportedSign;
-    if (preferredSignId) {
-      chosenSign = SUPPORTED_SIGNS.find(s => s.id === preferredSignId) || SUPPORTED_SIGNS[0];
-    } else {
-      // Pick a realistic sign
-      const idx = Math.floor(Math.random() * SUPPORTED_SIGNS.length);
-      chosenSign = SUPPORTED_SIGNS[idx];
+  private processResults(results: MPHandsResults) {
+    const lms = results.multiHandLandmarks?.[0];
+    const now = Date.now();
+    
+    if (!lms) {
+       this.history = []; // clear history on hand loss
+       this.onResultCallback?.({
+         sign: null,
+         confidence: 0,
+         timestamp: now,
+         landmarksDetected: false,
+         holdingSignId: null
+       });
+       return;
     }
 
-    // Realistic confidence variance (91% - 98%)
-    const variance = Math.floor(Math.random() * 6) - 2;
-    const confidence = Math.min(99, Math.max(88, chosenSign.defaultConfidence + variance));
+    const classResult = classifySign(lms);
+    
+    // Strict interruption: If we hit an UNKNOWN frame, clear the stability queue
+    if (!classResult.signId) {
+      this.history = [];
+    } else {
+      this.history.push({ signId: classResult.signId, time: now });
+      // Keep history for the last 1 second
+      this.history = this.history.filter(h => now - h.time < 1000);
+    }
 
-    this.isAnalyzing = false;
-    return {
-      sign: chosenSign,
-      confidence,
-      timestamp: Date.now(),
-      landmarksDetected: true
-    };
+    let finalSignId = null;
+    let holdingSignId = null;
+    let finalConfidence = classResult.confidence;
+    
+    // Check stability
+    // 3 frames (approx 100ms) -> consider it "holding"
+    if (this.history.length >= 3) {
+      const recentHold = this.history.slice(-3);
+      const holdSame = recentHold.every(r => r.signId === classResult.signId);
+      if (holdSame) {
+        holdingSignId = classResult.signId;
+      }
+    }
+    
+    // 10 frames (approx 300-400ms) -> fully accepted
+    if (this.history.length >= 10) {
+       const recentAccept = this.history.slice(-10);
+       const allSame = recentAccept.every(r => r.signId === classResult.signId);
+       if (allSame && classResult.signId) {
+          finalSignId = classResult.signId;
+       }
+    }
+
+    let finalSign = null;
+    if (finalSignId) {
+       finalSign = SUPPORTED_SIGNS.find(s => s.id === finalSignId) || null;
+    }
+
+    this.onResultCallback?.({
+      sign: finalSign,
+      confidence: Math.round(finalConfidence * 100),
+      timestamp: now,
+      landmarksDetected: true,
+      rawLandmarks: lms,
+      holdingSignId
+    });
   }
 
   public getIsAnalyzing(): boolean {

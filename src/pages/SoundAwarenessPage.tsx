@@ -1,336 +1,271 @@
 import React, { useState, useEffect } from 'react';
 import { soundDetectionService } from '../services/sound/soundService';
-import { DetectedSound } from '../types';
+import { DetectedSound, AlertSeverity } from '../types';
+import { useSettings } from '../contexts/SettingsContext';
 import { DEMO_SOUND_SCENARIOS } from '../data/mockData';
 import { 
   BellRing, 
-  Volume2, 
+  VolumeX, 
   Flame, 
   Car, 
   Bell, 
-  UserCheck, 
-  AlertTriangle, 
-  Vibrate, 
-  X, 
-  Info,
-  Activity,
-  CheckCircle2
+  MessageCircle, 
+  AlertTriangle,
+  History,
+  X,
+  Sparkles,
+  Info
 } from 'lucide-react';
 
 export const SoundAwarenessPage: React.FC = () => {
-  const [isMonitoring, setIsMonitoring] = useState(false);
-  const [currentDecibels, setCurrentDecibels] = useState(38);
-  const [freqData, setFreqData] = useState<number[]>([12, 24, 45, 30, 60, 25, 18, 33]);
+  const [isActive, setIsActive] = useState(false);
+  const [decibels, setDecibels] = useState(0);
+  const [frequencies, setFrequencies] = useState<number[]>(new Array(20).fill(0));
+  const [recentAlerts, setRecentAlerts] = useState<DetectedSound[]>([]);
   const [activeAlert, setActiveAlert] = useState<DetectedSound | null>(null);
-  const [alertHistory, setAlertHistory] = useState<DetectedSound[]>(DEMO_SOUND_SCENARIOS);
+  
+  const { settings } = useSettings();
 
   useEffect(() => {
-    // Start acoustic monitor automatically
-    handleStartMonitor();
-
-    // Subscribe to sound alerts
-    const unsubscribe = soundDetectionService.subscribeAlerts((alert: DetectedSound) => {
-      setActiveAlert(alert);
-      setAlertHistory(prev => [alert, ...prev]);
-    });
-
+    // We start the monitor by default if permitted
+    startMonitor();
+    const unsubscribe = soundDetectionService.subscribeAlerts(handleNewAlert);
     return () => {
-      unsubscribe();
       soundDetectionService.stopListening();
+      unsubscribe();
     };
   }, []);
 
-  const handleStartMonitor = async () => {
-    const res = await soundDetectionService.startListening((db: number, audioArray: Uint8Array) => {
-      setCurrentDecibels(db);
-      // Sample 8 frequency buckets for UI
-      const sampled = Array.from(audioArray.slice(0, 8)) as number[];
-      setFreqData(sampled);
-    });
-    setIsMonitoring(res.success);
+  const startMonitor = () => {
+    setIsActive(true);
+    soundDetectionService.startListening(
+      (db, freqs) => {
+        setDecibels(Math.round(db));
+        setFrequencies(Array.from(freqs));
+      }
+    );
   };
 
-  const handleToggleMonitor = () => {
-    if (isMonitoring) {
-      soundDetectionService.stopListening();
-      setIsMonitoring(false);
-    } else {
-      handleStartMonitor();
+  const handleNewAlert = (alert: DetectedSound) => {
+    setActiveAlert(alert);
+    setRecentAlerts(prev => [alert, ...prev].slice(0, 5));
+    
+    // Trigger haptic vibration if supported and enabled
+    if (settings.vibration_enabled && 'vibrate' in navigator) {
+      if (alert.severity === 'critical') {
+        navigator.vibrate([200, 100, 200, 100, 200]); // SOS pattern
+      } else if (alert.severity === 'warning') {
+        navigator.vibrate([300, 200, 300]);
+      } else {
+        navigator.vibrate([200]);
+      }
     }
   };
 
-  const handleTriggerDemo = (scenarioId: string) => {
-    soundDetectionService.triggerSoundAlert(scenarioId);
+  const getSeverityColors = (severity: AlertSeverity) => {
+    switch (severity) {
+      case 'critical': return 'bg-red-600 text-white border-red-500 shadow-red-600/40';
+      case 'warning': return 'bg-amber-500 text-slate-900 border-amber-400 shadow-amber-500/40';
+      case 'info': return 'bg-blue-500 text-white border-blue-400 shadow-blue-500/40';
+      default: return 'bg-slate-200 text-slate-800 border-slate-300';
+    }
   };
 
-  const dismissAlert = () => {
-    setActiveAlert(null);
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'fire_alarm': return <Flame className="w-5 h-5" />;
+      case 'vehicle_horn': return <Car className="w-5 h-5" />;
+      case 'doorbell': return <Bell className="w-5 h-5" />;
+      case 'speech': return <MessageCircle className="w-5 h-5" />;
+      default: return <BellRing className="w-5 h-5" />;
+    }
+  };
+
+  const triggerDemo = (scenario: DetectedSound) => {
+    soundDetectionService.triggerSoundAlert(scenario.id);
   };
 
   return (
-    <div className="space-y-6 pb-28 max-w-4xl mx-auto">
+    <div className={`space-y-6 pb-28 max-w-4xl mx-auto transition-colors duration-300 ${activeAlert?.severity === 'critical' ? 'animate-emergency-flash' : ''}`}>
       
       {/* Header */}
       <div className="text-center space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
-          <BellRing className="w-3.5 h-3.5" />
-          <span>Acoustic Safety Guardian</span>
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Sound Alerts</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-          Sound Awareness
+          Listening for important sounds...
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-          SAMNYA helps you stay aware of important sounds around you.
-        </p>
       </div>
 
-      {/* Honest Prototype AI Disclosure */}
       <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-        <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-bold">Sound Classification Architecture (Demo Mode):</p>
-          <p className="mt-0.5 text-amber-800 dark:text-amber-300 leading-relaxed">
-            Real environmental sound recognition requires edge acoustic neural networks. For the MVP, this screen demonstrates real-time Web Audio API decibel metering, device haptic vibration, and immediate visual strobe dispatch for safety alerts.
-          </p>
+          <p className="font-bold mb-1">Demo Mode: Sound alerts are simulated for this prototype. Tap a scenario below to see how alerts work.</p>
         </div>
       </div>
 
-      {/* Acoustic Meter Hub */}
-      <div className="bg-white dark:bg-[#0F172A] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+      {/* Main Visualizer Card */}
+      <div className="bg-white dark:bg-[#0F172A] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-2xl ${isMonitoring ? 'bg-amber-500/20 text-amber-500 animate-pulse' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-              <Activity className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  Environmental Acoustic Monitor
-                </span>
-                <span className={`w-2.5 h-2.5 rounded-full ${isMonitoring ? 'bg-green-500 animate-ping' : 'bg-slate-400'}`} />
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {isMonitoring ? 'Actively sampling ambient noise level' : 'Monitoring paused'}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleToggleMonitor}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-              isMonitoring
-                ? 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200'
-                : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20'
-            }`}
-          >
-            {isMonitoring ? 'Pause Monitor' : 'Resume Monitor'}
-          </button>
-        </div>
-
-        {/* Real-time Decibel Bar & Graphic */}
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Current Ambient Volume
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <span className={`relative flex h-3 w-3 ${isActive ? '' : 'opacity-50'}`}>
+              {isActive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>}
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${isActive ? 'bg-teal-500' : 'bg-slate-400'}`}></span>
             </span>
-            <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white">
-              {currentDecibels} <span className="text-xs text-slate-400 font-normal">dB</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {isActive ? 'Microphone Active' : 'Microphone Paused'}
             </span>
           </div>
-
-          {/* Equalizer Frequency Visualization */}
-          <div className="flex items-end justify-between gap-1.5 h-16 pt-2">
-            {freqData.map((val, i) => {
-              const heightPct = Math.min(100, Math.max(12, (val / 255) * 100));
-              return (
-                <div key={i} className="flex-1 bg-slate-200 dark:bg-slate-800 rounded-t-lg overflow-hidden flex flex-col justify-end h-full">
-                  <div 
-                    className="w-full bg-gradient-to-t from-amber-500 to-amber-300 rounded-t-lg transition-all duration-150"
-                    style={{ height: `${heightPct}%` }}
-                  />
-                </div>
-              );
-            })}
+          <div className="text-right">
+            <div className="text-3xl font-black font-mono text-slate-900 dark:text-white leading-none">
+              {decibels}
+              <span className="text-base text-slate-400 ml-1">dB</span>
+            </div>
+            <div className="text-[10px] uppercase font-bold text-slate-400 mt-1">Sound Level</div>
           </div>
         </div>
 
-      </div>
-
-      {/* Trigger Sound Alert (Demo Mode buttons) */}
-      <div className="bg-white dark:bg-[#0F172A] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div>
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            Simulate Sound Classification (Demo Triggers):
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Tap a scenario below to test the full visual strobe alert, device haptic vibration, and action advice:
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          
-          <button
-            onClick={() => handleTriggerDemo('snd-fire')}
-            className="p-4 rounded-2xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-950/60 border border-red-200 dark:border-red-900/80 text-left transition-all flex items-center justify-between group active:scale-98"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-red-600 text-white">
-                <Flame className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-red-900 dark:text-red-200">
-                  🚨 Fire Alarm
-                </div>
-                <div className="text-[11px] text-red-700 dark:text-red-400">
-                  High-pitch 85dB oscillating siren
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/60 px-2 py-0.5 rounded">
-              Critical
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerDemo('snd-horn')}
-            className="p-4 rounded-2xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-950/60 border border-orange-200 dark:border-orange-900/80 text-left transition-all flex items-center justify-between group active:scale-98"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-orange-600 text-white">
-                <Car className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-orange-900 dark:text-orange-200">
-                  📢 Vehicle Horn
-                </div>
-                <div className="text-[11px] text-orange-700 dark:text-orange-400">
-                  Sudden acoustic traffic burst
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/60 px-2 py-0.5 rounded">
-              Warning
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerDemo('snd-doorbell')}
-            className="p-4 rounded-2xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-950/60 border border-blue-200 dark:border-blue-900/80 text-left transition-all flex items-center justify-between group active:scale-98"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-600 text-white">
-                <Bell className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-blue-900 dark:text-blue-200">
-                  🔔 Doorbell Chime
-                </div>
-                <div className="text-[11px] text-blue-700 dark:text-blue-400">
-                  Front entrance guest visitor
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 rounded">
-              Info
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerDemo('snd-speech')}
-            className="p-4 rounded-2xl bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-950/60 border border-teal-200 dark:border-teal-900/80 text-left transition-all flex items-center justify-between group active:scale-98"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-teal-600 text-white">
-                <UserCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-teal-900 dark:text-teal-200">
-                  🗣️ Important Speech
-                </div>
-                <div className="text-[11px] text-teal-700 dark:text-teal-400">
-                  Elevated voice calling your name
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/60 px-2 py-0.5 rounded">
-              Attention
-            </span>
-          </button>
-
-        </div>
-      </div>
-
-      {/* Detection Log */}
-      <div className="bg-white dark:bg-[#0F172A] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-          Recent Sound Awareness Log:
-        </h3>
-
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {alertHistory.map((item, idx) => (
-            <div key={idx} className="py-3 flex items-start justify-between gap-3 text-xs">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-                  <span>{item.name}</span>
-                  {item.decibels && (
-                    <span className="text-[10px] text-slate-400 font-mono">({item.decibels} dB)</span>
-                  )}
-                </div>
-                <p className="text-slate-500 dark:text-slate-400">{item.description}</p>
-                <p className="text-teal-600 dark:text-teal-400 font-semibold">{item.actionAdvice}</p>
-              </div>
-              <span className="text-slate-400 text-[11px] whitespace-nowrap">{item.timestamp}</span>
-            </div>
+        {/* Frequency Bars Visualization */}
+        <div className="h-32 flex items-end justify-between gap-1 opacity-80">
+          {frequencies.map((val, i) => (
+            <div 
+              key={i} 
+              className="w-full bg-amber-500 dark:bg-amber-400 rounded-t-sm transition-all duration-75"
+              style={{ height: `${Math.max(4, (val / 255) * 100)}%`, opacity: 0.3 + (val / 255) * 0.7 }}
+            />
           ))}
         </div>
       </div>
 
-      {/* ACTIVE EMERGENCY POPUP MODAL */}
+      {/* Active Alert Modal Overlay */}
       {activeAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-lg bg-white dark:bg-[#0F172A] border-4 border-red-500 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 animate-emergency-flash text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border-4 ${getSeverityColors(activeAlert.severity)} animate-scaleUp`}>
             
-            <div className="w-16 h-16 rounded-full bg-red-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-red-600/40">
-              <AlertTriangle className="w-8 h-8 animate-bounce" />
-            </div>
-
-            <div>
-              <span className="text-xs font-extrabold uppercase tracking-widest text-red-600 dark:text-red-400">
-                CRITICAL SOUND DETECTED
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 uppercase">
-                🚨 {activeAlert.name}
-              </h2>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900 text-left space-y-2">
-              <p className="text-sm font-semibold text-red-950 dark:text-red-100">
-                {activeAlert.description}
-              </p>
-              <div className="pt-2 border-t border-red-200 dark:border-red-900 text-xs text-red-800 dark:text-red-200">
-                <strong>Recommended Action:</strong> {activeAlert.actionAdvice}
+            <div className="p-6 text-center space-y-4">
+              <div className="w-20 h-20 mx-auto rounded-full bg-white/20 flex items-center justify-center animate-pulse-subtle">
+                {getCategoryIcon(activeAlert.category)}
               </div>
+              
+              <div>
+                <div className="text-xs font-black uppercase tracking-widest opacity-90 mb-2">
+                  {activeAlert.severity === 'critical' ? '⚠️ SOUND ALERT' : 'Notice'}
+                </div>
+                <h2 className="text-3xl font-black leading-tight drop-shadow-md">
+                  {activeAlert.name}
+                </h2>
+                <p className="mt-3 font-semibold opacity-95 text-lg">
+                  {activeAlert.description}
+                </p>
+                <div className="mt-4 p-4 rounded-xl bg-black/20 text-sm font-bold">
+                  {activeAlert.actionAdvice}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setActiveAlert(null)}
+                className="mt-6 w-full py-4 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-lg transition-colors backdrop-blur-sm"
+              >
+                Dismiss Alert
+              </button>
             </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
-              <span>Timestamp: {activeAlert.timestamp}</span>
-              <span className="flex items-center gap-1">
-                <Vibrate className="w-4 h-4 text-red-500" />
-                <span>Vibration Alert Dispatched</span>
-              </span>
-            </div>
-
-            <button
-              onClick={dismissAlert}
-              className="w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg shadow-red-600/30 transition-all active:scale-95"
-            >
-              I Understand / Acknowledge Alert
-            </button>
-
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Demo Triggers (Left) */}
+        <div className="bg-white dark:bg-[#0F172A] p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <VolumeX className="w-5 h-5 text-amber-500" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              Test Sound Alerts (Demo)
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {DEMO_SOUND_SCENARIOS.map((scenario) => (
+              <button
+                key={scenario.id}
+                onClick={() => triggerDemo(scenario)}
+                className={`p-3 rounded-2xl border text-left flex items-center justify-between group transition-all hover:-translate-y-0.5 shadow-sm ${
+                  scenario.severity === 'critical' ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 hover:border-red-400' :
+                  scenario.severity === 'warning' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 hover:border-amber-400' :
+                  'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 hover:border-blue-400'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${
+                    scenario.severity === 'critical' ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400' :
+                    scenario.severity === 'warning' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400' :
+                    'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                  }`}>
+                    {getCategoryIcon(scenario.category)}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 dark:text-white text-sm">
+                      {scenario.name}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {scenario.decibels} dB
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-50 group-hover:opacity-100 transition-opacity">
+                  Test
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent History (Right) */}
+        <div className="bg-white dark:bg-[#0F172A] p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <History className="w-5 h-5 text-slate-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              Recent Alerts
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {recentAlerts.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm font-medium">
+                No recent alerts detected.
+              </div>
+            ) : (
+              recentAlerts.map((alert, idx) => (
+                <div key={`${alert.id}-${idx}`} className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+                  <div className={`mt-0.5 ${
+                    alert.severity === 'critical' ? 'text-red-500' :
+                    alert.severity === 'warning' ? 'text-amber-500' : 'text-blue-500'
+                  }`}>
+                    {getCategoryIcon(alert.category)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-slate-900 dark:text-white">
+                        {alert.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        Just now
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                      {alert.description}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
 
     </div>
   );

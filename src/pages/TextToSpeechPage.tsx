@@ -26,15 +26,14 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
   const { addMessage } = useConversation();
 
   const quickPhrases = [
-    'I am Deaf.',
-    'I am non-speaking.',
-    'Please type.',
-    'Please speak slowly.',
+    'Thank you.',
+    'Please wait.',
     'I need help.',
+    'Please type your response.',
     "I don't understand.",
-    'Where is the emergency exit?',
-    'Could you repeat that?',
-    'Thank you very much.'
+    'Please repeat that.',
+    'I am Deaf.',
+    'I am non-speaking.'
   ];
 
   const handleSpeak = () => {
@@ -60,7 +59,7 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
 
   const handleAddToBridge = () => {
     if (!text.trim()) return;
-    addMessage('user', text.trim(), 'typing', 'You (Text to Speech)');
+    addMessage('user', text.trim(), 'typing', 'You');
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -72,13 +71,13 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
       <div className="text-center space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Speech Synthesis</span>
+          <span>Your Voice</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
           Text → Speech
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-          Type your message and SAMNYA speaks it with a clear, natural voice. Designed for non-speaking and speech-impaired communicators.
+          Type what you want to say. SAMNYA speaks it for you.
         </p>
       </div>
 
@@ -87,7 +86,7 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
         
         <div>
           <label htmlFor="tts-input" className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-            Your Typed Message:
+            Type what you want to say...
           </label>
           <textarea
             id="tts-input"
@@ -99,27 +98,31 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
           />
         </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-2">
+        {/* Big Speak Button */}
+        <div className="pt-2">
+          {isSpeaking ? (
+            <button
+              onClick={handleStop}
+              className="w-full py-5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg shadow-lg shadow-red-600/30 flex items-center justify-center gap-2 transition-all active:scale-95"
+            >
+              <VolumeX className="w-6 h-6" />
+              <span>Stop Speaking</span>
+            </button>
+          ) : (
             <button
               onClick={handleSpeak}
-              disabled={!text.trim() || isSpeaking}
-              className="px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-40"
+              disabled={!text.trim()}
+              className="w-full py-5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-lg shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40"
             >
-              <Volume2 className="w-5 h-5" />
-              <span>{isSpeaking ? 'Speaking Now...' : 'Speak'}</span>
+              <Volume2 className="w-6 h-6" />
+              <span>Speak</span>
             </button>
+          )}
+        </div>
 
-            {isSpeaking && (
-              <button
-                onClick={handleStop}
-                className="px-4 py-3.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow transition-all active:scale-95"
-              >
-                <VolumeX className="w-4 h-4" />
-              </button>
-            )}
-
+        {/* Action buttons row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2">
             {text && (
               <button
                 onClick={() => setText('')}
@@ -127,6 +130,7 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
                 title="Clear text"
               >
                 <RotateCcw className="w-4 h-4" />
+                <span>Clear</span>
               </button>
             )}
           </div>
@@ -137,7 +141,7 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
             className="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40"
           >
             {added ? <Check className="w-4 h-4 text-green-500" /> : <Plus className="w-4 h-4" />}
-            <span>{added ? 'Sent to Bridge' : 'Add to Bridge Conversation'}</span>
+            <span>{added ? 'Added' : 'Add to Conversation'}</span>
           </button>
         </div>
 
@@ -181,7 +185,7 @@ export const TextToSpeechPage: React.FC<TextToSpeechPageProps> = ({ onNavigate }
       {/* Quick Phrases */}
       <div className="bg-white dark:bg-[#0F172A] p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
         <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-          Quick Communication Phrases:
+          Quick Phrases:
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Tap any phrase to immediately populate the speech input:

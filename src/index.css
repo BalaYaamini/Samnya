@@ -4,27 +4,48 @@
   --text-scale: 1;
 }
 
+html {
+  font-size: calc(100% * var(--text-scale)) !important;
+}
+
 body {
-  font-size: calc(1rem * var(--text-scale));
   line-height: 1.6;
 }
 
-/* High contrast mode enhancements */
+/* High Contrast Mode - Improved Accessibility */
 .high-contrast {
-  filter: contrast(1.25);
+  /* Slightly boost global contrast */
+  filter: contrast(1.1) saturate(1.1);
 }
 
-.high-contrast button, 
-.high-contrast a, 
-.high-contrast input, 
-.high-contrast textarea {
-  border-width: 2px !important;
+/* Strengthen low-contrast text */
+.high-contrast .text-slate-400,
+.high-contrast .text-slate-500 {
+  color: #334155 !important;
+}
+.high-contrast .dark .text-slate-400,
+.high-contrast .dark .text-slate-500 {
+  color: #e2e8f0 !important;
+}
+
+/* Slightly strengthen borders without adding black boxes */
+.high-contrast .border-slate-100,
+.high-contrast .border-slate-200 {
+  border-color: #cbd5e1 !important;
+}
+.high-contrast .dark .border-slate-800,
+.high-contrast .dark .border-slate-700 {
+  border-color: #475569 !important;
+}
+
+/* Ensure buttons have accessible text weight */
+.high-contrast button {
   font-weight: 700 !important;
 }
 
 /* Accessible focus indicators */
 :focus-visible {
-  outline: 3px solid #38BDF8;
+  outline: 3px solid #0284c7 !important;
   outline-offset: 2px;
 }
 
@@ -68,4 +89,47 @@ body {
 
 .animate-emergency-flash {
   animation: emergency-flash 0.8s ease-in-out infinite;
+}
+
+/* --- Added for UI/UX Redesign --- */
+
+/* Hide scrollbar for horizontal scrolling elements */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Safe area padding for mobile devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Custom animations not included in standard Tailwind */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-scaleUp {
+  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Accessibility: Respect user's system motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

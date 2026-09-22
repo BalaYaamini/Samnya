@@ -38,7 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
           <Logo
             variant="combo"
             size="sm"
-            badge="MVP"
             showSubtitle={true}
             glow={true}
             className="group-hover:opacity-95"
@@ -59,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Active Accessibility Persona (Click to Switch)"
           >
             <span>{user?.role === 'admin' ? '🛡️' : currentPersona.emoji}</span>
-            <span className="hidden md:inline">{user?.role === 'admin' ? 'Admin Portal' : currentPersona.title}</span>
+            <span className="hidden md:inline">{user?.role === 'admin' ? 'Admin Mode' : `${currentPersona.title.replace(' Users', '')} Mode`}</span>
           </button>
 
           {/* Admin Dashboard Quick Link (if Admin) */}

@@ -3,6 +3,7 @@ import { signRecognitionService, SignRecognitionResult } from '../services/sign/
 import { SupportedSign } from '../types';
 import { useConversation } from '../contexts/ConversationContext';
 import { ttsService } from '../services/speech/ttsService';
+import { HAND_CONNECTIONS } from '../services/sign/handClassifier';
 import { 
   Camera, 
   CameraOff, 
@@ -10,11 +11,10 @@ import {
   Sparkles, 
   Volume2, 
   Plus, 
-  RotateCcw, 
   Check, 
   AlertTriangle,
   Info,
-  Layers
+  Loader2
 } from 'lucide-react';
 
 interface SignToTextPageProps {
@@ -24,17 +24,66 @@ interface SignToTextPageProps {
 export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) => {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  
+  // Continuous recognition state
   const [recognizedResult, setRecognizedResult] = useState<SignRecognitionResult | null>(null);
-  const [selectedPresetSign, setSelectedPresetSign] = useState<string>('help');
+  // Separate state just to hold the last valid recognized sign for the UI action buttons
+  const [lastConfirmedSign, setLastConfirmedSign] = useState<SupportedSign | null>(null);
+  
   const [confirmed, setConfirmed] = useState(false);
   const [added, setAdded] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
   const { addMessage } = useConversation();
   const supportedSigns = signRecognitionService.getSupportedSigns();
 
   useEffect(() => {
+    // Register continuous callback
+    signRecognitionService.setOnResult((result) => {
+      setRecognizedResult(result);
+      if (result.sign) {
+        setLastConfirmedSign(result.sign);
+        setConfirmed(false); // Reset confirmation when a new valid sign is locked
+      }
+      
+      // Draw landmarks
+      if (canvasRef.current && videoRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          if (result.landmarksDetected && result.rawLandmarks) {
+            const w = canvasRef.current.width;
+            const h = canvasRef.current.height;
+            
+            ctx.strokeStyle = '#2dd4bf'; // teal-400
+            ctx.fillStyle = '#60a5fa'; // blue-400
+            ctx.lineWidth = 3;
+            
+            // Draw connections
+            for (const [i, j] of HAND_CONNECTIONS) {
+              const lm1 = result.rawLandmarks[i];
+              const lm2 = result.rawLandmarks[j];
+              ctx.beginPath();
+              // Note: Mirror X axis because video is mirrored (-scale-x-100)
+              ctx.moveTo((1 - lm1.x) * w, lm1.y * h);
+              ctx.lineTo((1 - lm2.x) * w, lm2.y * h);
+              ctx.stroke();
+            }
+            
+            // Draw points
+            for (const lm of result.rawLandmarks) {
+              ctx.beginPath();
+              ctx.arc((1 - lm.x) * w, lm.y * h, 4, 0, 2 * Math.PI);
+              ctx.fill();
+            }
+          }
+        }
+      }
+    });
+
     return () => {
       signRecognitionService.stopCamera();
     };
@@ -42,15 +91,36 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
 
   const handleStartCamera = async () => {
     setCameraError(null);
+    setIsInitializing(true);
+    
+    try {
+      await signRecognitionService.initializeMediaPipe();
+    } catch (err: any) {
+      setCameraError('Failed to load MediaPipe models. Check network connection.');
+      setIsInitializing(false);
+      return;
+    }
+
     const res = await signRecognitionService.requestCamera();
     if (res.success && res.stream && videoRef.current) {
       videoRef.current.srcObject = res.stream;
       videoRef.current.play().catch(e => console.warn('Video play error:', e));
       setCameraActive(true);
+      
+      // Set canvas size to match video resolution
+      videoRef.current.onloadedmetadata = () => {
+        if (canvasRef.current && videoRef.current) {
+          canvasRef.current.width = videoRef.current.videoWidth;
+          canvasRef.current.height = videoRef.current.videoHeight;
+        }
+        signRecognitionService.startDetectionLoop(videoRef.current!);
+      };
     } else {
       setCameraError(res.error || 'Unable to access camera.');
       setCameraActive(false);
     }
+    
+    setIsInitializing(false);
   };
 
   const handleStopCamera = () => {
@@ -59,16 +129,10 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
       videoRef.current.srcObject = null;
     }
     setCameraActive(false);
-  };
-
-  const handleRunDetection = async (targetSignId?: string) => {
-    setIsAnalyzing(true);
-    setConfirmed(false);
-    try {
-      const result = await signRecognitionService.detectSign(targetSignId || selectedPresetSign);
-      setRecognizedResult(result);
-    } finally {
-      setIsAnalyzing(false);
+    setRecognizedResult(null);
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     }
   };
 
@@ -77,13 +141,13 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
   };
 
   const handleSpeak = () => {
-    if (!recognizedResult) return;
-    ttsService.speak(recognizedResult.sign.label);
+    if (!lastConfirmedSign) return;
+    ttsService.speak(lastConfirmedSign.label);
   };
 
   const handleAddToMessage = () => {
-    if (!recognizedResult) return;
-    addMessage('user', recognizedResult.sign.label, 'sign', 'You (Sign Language)');
+    if (!lastConfirmedSign) return;
+    addMessage('user', lastConfirmedSign.label, 'sign', 'You (Sign Language)');
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -95,7 +159,7 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
       <div className="text-center space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Vision AI Prototype</span>
+          <span>Real-Time Hand Tracking</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
           Sign → Text
@@ -109,9 +173,9 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
       <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-3">
         <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-bold">Computer Vision Architecture Prototype:</p>
+          <p className="font-bold">MVP Implementation Active:</p>
           <p className="mt-0.5 text-blue-800 dark:text-blue-300 leading-relaxed">
-            This module illustrates SAMNYA's clean ML pipeline abstraction for 10 core gestures. It demonstrates camera viewport integration, landmark tracking simulation, and confidence scoring ready for model weights attachment.
+            Using real-time MediaPipe geometric landmark classification. See catalogue for reliably supported signs vs experimental ones.
           </p>
         </div>
       </div>
@@ -120,9 +184,8 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
         <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-bold">Camera Access Note:</p>
+            <p className="font-bold">Camera Error:</p>
             <p className="mt-0.5">{cameraError}</p>
-            <p className="mt-1 font-semibold">You can still test sign recognition using the interactive simulator below!</p>
           </div>
         </div>
       )}
@@ -137,84 +200,87 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
             {/* Live Video */}
             <video
               ref={videoRef}
-              autoPlay
               playsInline
               muted
               className={`w-full h-full object-cover transform -scale-x-100 ${cameraActive ? 'block' : 'hidden'}`}
             />
+            
+            {/* Landmark Canvas Overlay */}
+            <canvas
+              ref={canvasRef}
+              className={`absolute inset-0 w-full h-full pointer-events-none object-cover ${cameraActive ? 'block' : 'hidden'}`}
+            />
 
             {/* Inactive Camera Placeholder */}
-            {!cameraActive && (
+            {!cameraActive && !isInitializing && (
               <div className="text-center p-6 space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 mx-auto">
                   <Camera className="w-7 h-7" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">Camera Viewport Inactive</p>
+                  <p className="text-sm font-bold text-white">Camera Off</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                    Turn on camera for live hand gesture tracking or run simulated detection.
+                    Turn on camera for live hand gesture tracking.
                   </p>
                 </div>
               </div>
             )}
+            
+            {isInitializing && (
+               <div className="text-center p-6 space-y-3">
+                 <Loader2 className="w-10 h-10 text-teal-500 animate-spin mx-auto" />
+                 <p className="text-sm font-bold text-white">Loading MediaPipe Models...</p>
+                 <p className="text-xs text-slate-400">Fetching ~5MB of WASM dependencies.</p>
+               </div>
+            )}
 
             {/* Tracking Landmarks HUD Overlay */}
-            <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between">
-              <div className="flex items-center justify-between text-[11px] font-mono font-bold">
-                <span className="px-2 py-0.5 rounded bg-black/60 text-teal-400 border border-teal-500/30">
-                  {cameraActive ? 'VIDEO FEED ACTIVE' : 'SIMULATOR READY'}
-                </span>
-                <span className="px-2 py-0.5 rounded bg-black/60 text-slate-300">
-                  21-HAND-LANDMARKS
-                </span>
+            {cameraActive && (
+              <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-[11px] font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded bg-black/60 text-teal-400 border border-teal-500/30">
+                    LIVE TRACKING ACTIVE
+                  </span>
+                  {recognizedResult?.landmarksDetected && (
+                    <span className="px-2 py-0.5 rounded bg-black/60 text-blue-400 border border-blue-500/30">
+                      HAND DETECTED
+                    </span>
+                  )}
+                </div>
+                
+                {recognizedResult?.sign ? (
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-teal-500/90 text-white font-black text-2xl rounded-full shadow-lg border-2 border-teal-400 backdrop-blur-sm transition-all">
+                    {recognizedResult.sign.label}
+                  </div>
+                ) : recognizedResult?.holdingSignId ? (
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-amber-500/80 text-white font-bold text-sm rounded-full shadow-lg border border-amber-400 backdrop-blur-sm transition-all animate-pulse">
+                    Hold sign steady...
+                  </div>
+                ) : null}
               </div>
-
-              {/* Simulated Hand Landmark Box */}
-              <div className="w-36 h-36 sm:w-44 sm:h-44 mx-auto rounded-2xl border-2 border-dashed border-teal-400/60 bg-teal-500/5 relative flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-teal-400 absolute top-2 left-2 animate-ping" />
-                <div className="w-2 h-2 rounded-full bg-teal-400 absolute top-2 right-2" />
-                <div className="w-2 h-2 rounded-full bg-teal-400 absolute bottom-2 left-2" />
-                <div className="w-2 h-2 rounded-full bg-teal-400 absolute bottom-2 right-2" />
-                <div className="w-3 h-3 rounded-full bg-blue-400 absolute" />
-                <span className="text-[10px] font-mono text-teal-300/80 bg-black/40 px-1 rounded">
-                  HAND DETECTED
-                </span>
-              </div>
-
-              <div className="text-[10px] text-slate-400 text-center font-mono bg-black/40 py-0.5 rounded">
-                SAMNYA Gesture Core v1.0
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Camera Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {!cameraActive ? (
               <button
                 onClick={handleStartCamera}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+                disabled={isInitializing}
+                className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 text-sm font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
               >
-                <Camera className="w-4 h-4 text-teal-400" />
-                <span>Enable Camera Feed</span>
+                <Camera className="w-5 h-5 text-teal-400" />
+                <span>{isInitializing ? 'Initializing...' : 'Turn On Camera'}</span>
               </button>
             ) : (
               <button
                 onClick={handleStopCamera}
-                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-2 transition-all"
+                className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold flex items-center gap-2 transition-all"
               >
-                <CameraOff className="w-4 h-4" />
+                <CameraOff className="w-5 h-5" />
                 <span>Stop Camera</span>
               </button>
             )}
-
-            <button
-              onClick={() => handleRunDetection()}
-              disabled={isAnalyzing}
-              className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-teal-600/20 transition-all active:scale-95 disabled:opacity-50"
-            >
-              <HandMetal className="w-4 h-4" />
-              <span>{isAnalyzing ? 'Analyzing Gestures...' : 'Capture & Recognize Sign'}</span>
-            </button>
           </div>
 
         </div>
@@ -226,39 +292,25 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
           <div className="bg-white dark:bg-[#0F172A] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Recognized expression
+                Last Recognized Sign
               </span>
-              {recognizedResult && (
+              {recognizedResult?.sign && (
                 <span className="text-xs font-bold text-teal-600 dark:text-teal-400">
-                  Confidence {recognizedResult.confidence}%
+                  Stable Confidence {recognizedResult.confidence}%
                 </span>
               )}
             </div>
 
-            {recognizedResult ? (
+            {lastConfirmedSign ? (
               <div className="space-y-3">
                 <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-center">
                   <span className="text-2xl mb-1 block">🤟</span>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-                    "{recognizedResult.sign.label}"
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">
+                    "{lastConfirmedSign.label}"
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                    {recognizedResult.sign.description}
+                    {lastConfirmedSign.description}
                   </p>
-                </div>
-
-                {/* Confidence Meter Bar */}
-                <div>
-                  <div className="flex justify-between text-xs font-semibold mb-1 text-slate-600 dark:text-slate-400">
-                    <span>Confidence Score</span>
-                    <span>{recognizedResult.confidence}%</span>
-                  </div>
-                  <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div 
-                      className="h-full bg-teal-500 rounded-full transition-all duration-500"
-                      style={{ width: `${recognizedResult.confidence}%` }}
-                    />
-                  </div>
                 </div>
 
                 {/* Specified Action Buttons */}
@@ -276,14 +328,6 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
                   </button>
 
                   <button
-                    onClick={() => handleRunDetection()}
-                    className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Try Again</span>
-                  </button>
-
-                  <button
                     onClick={handleSpeak}
                     className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
                   >
@@ -293,10 +337,10 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
 
                   <button
                     onClick={handleAddToMessage}
-                    className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                    className="col-span-2 py-3 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all"
                   >
-                    {added ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                    <span>{added ? 'Added' : 'Add to Message'}</span>
+                    {added ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span>{added ? 'Added to Chat' : 'Add to Conversation'}</span>
                   </button>
                 </div>
               </div>
@@ -304,7 +348,7 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
               <div className="text-center py-6 space-y-2">
                 <HandMetal className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto" />
                 <p className="text-xs text-slate-400">
-                  Select a sign from the catalogue below or tap "Capture & Recognize Sign" to test.
+                  Turn on the camera and perform a supported sign to begin.
                 </p>
               </div>
             )}
@@ -314,28 +358,32 @@ export const SignToTextPage: React.FC<SignToTextPageProps> = ({ onNavigate }) =>
           <div className="bg-white dark:bg-[#0F172A] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                10 Supported Signs (MVP)
+                Sign Catalogue
               </span>
-              <span className="text-[10px] text-teal-600 font-semibold">Tap to simulate</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {supportedSigns.map((s) => (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => {
-                    setSelectedPresetSign(s.id);
-                    handleRunDetection(s.id);
-                  }}
-                  className={`p-2.5 rounded-xl border text-left transition-all ${
-                    selectedPresetSign === s.id
-                      ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 text-slate-900 dark:text-white'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
-                  }`}
+                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all
+                    ${s.recognitionStatus === 'supported' ? 'border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-900/10' : 
+                      s.recognitionStatus === 'experimental' ? 'border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-900/10' : 
+                      'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50 opacity-70'}
+                  `}
                 >
-                  <div className="font-bold text-xs">{s.label}</div>
-                  <div className="text-[10px] text-slate-400 truncate">{s.hint}</div>
-                </button>
+                  <div className="flex justify-between items-center">
+                    <div className="font-bold text-sm text-slate-900 dark:text-white">{s.label}</div>
+                    <div className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase
+                      ${s.recognitionStatus === 'supported' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300' : 
+                        s.recognitionStatus === 'experimental' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' : 
+                        'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}
+                    `}>
+                      {s.recognitionStatus}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-600 dark:text-slate-400">{s.hint}</div>
+                </div>
               ))}
             </div>
           </div>

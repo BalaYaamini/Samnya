@@ -42,6 +42,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onNavigate }) 
               <span className="text-[11px] tracking-tight mt-0.5">
                 {item.label}
               </span>
+              {isActive && (
+                <div className="w-1 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5 animate-scaleUp" />
+              )}
             </button>
           );
         })}

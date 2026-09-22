@@ -14,7 +14,8 @@ import {
   Sparkles, 
   MessageSquare,
   ArrowDown,
-  Info
+  Info,
+  User as UserIcon
 } from 'lucide-react';
 
 export const CommunicationModePage: React.FC = () => {
@@ -55,7 +56,7 @@ export const CommunicationModePage: React.FC = () => {
           setSpeakerTranscript(transcript);
           if (isFinal) {
             // Auto add to conversation
-            addMessage('speaker', transcript, 'speech', 'Speaker (Voice)');
+            addMessage('speaker', transcript, 'speech', 'Other Person');
             setSpeakerTranscript('');
             speechService.stop();
             setIsListening(false);
@@ -73,7 +74,7 @@ export const CommunicationModePage: React.FC = () => {
   };
 
   const handleSpeakerPreset = (presetText: string) => {
-    addMessage('speaker', presetText, 'speech', 'Speaker (Voice)');
+    addMessage('speaker', presetText, 'speech', 'Other Person');
     setSpeakerTranscript('');
   };
 
@@ -81,7 +82,7 @@ export const CommunicationModePage: React.FC = () => {
     if (!userText.trim()) return;
 
     const textToSend = userText.trim();
-    addMessage('user', textToSend, 'typing', 'You (Text/Sign)');
+    addMessage('user', textToSend, 'typing', 'You');
 
     if (speakAloud) {
       setIsSpeakingOutLoud(true);
@@ -122,11 +123,11 @@ export const CommunicationModePage: React.FC = () => {
               Communication Mode
             </h1>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
-              Live Bridge
+              Live
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Two-way bridge: Conventional speech is converted to text; typed or signed thoughts are spoken aloud.
+            Others speak, you read. You type, SAMNYA speaks.
           </p>
         </div>
 
@@ -152,12 +153,12 @@ export const CommunicationModePage: React.FC = () => {
         </div>
       </div>
 
-      {/* SPEAKER SECTION (Person A) */}
+      {/* SPEAKER SECTION (Other Person) */}
       <section className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/30 p-5 rounded-3xl border border-blue-200 dark:border-blue-900/60 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-bold text-sm">
             <span className="text-lg">🗣️</span>
-            <span>Person A (Speaking)</span>
+            <span>Other Person</span>
           </div>
           <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5 ${
             isListening 
@@ -193,7 +194,7 @@ export const CommunicationModePage: React.FC = () => {
           {/* Quick preset simulations for judges/testing */}
           <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto text-xs">
             <span className="text-slate-500 dark:text-slate-400 text-[11px] font-medium hidden sm:inline">
-              Simulate speech:
+              Demo:
             </span>
             <button
               onClick={() => handleSpeakerPreset("Your appointment is scheduled at 3:00 PM.")}
@@ -215,13 +216,13 @@ export const CommunicationModePage: React.FC = () => {
             <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-1">
               Live Transcription:
             </span>
-            <p className="text-base font-semibold text-slate-900 dark:text-white">
+            <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
               "{speakerTranscript}"
             </p>
             <div className="mt-2 flex justify-end">
               <button
                 onClick={() => {
-                  addMessage('speaker', speakerTranscript, 'speech', 'Speaker (Voice)');
+                  addMessage('speaker', speakerTranscript, 'speech', 'Other Person');
                   setSpeakerTranscript('');
                 }}
                 className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1"
@@ -240,7 +241,7 @@ export const CommunicationModePage: React.FC = () => {
           <div className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-teal-600 dark:text-teal-400" />
             <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              Live Conversation Stream
+              Conversation
             </h2>
           </div>
           <span className="text-xs text-slate-400 font-medium">
@@ -275,36 +276,41 @@ export const CommunicationModePage: React.FC = () => {
                     <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
 
-                  <div className={`p-4 rounded-3xl max-w-[90%] sm:max-w-[80%] shadow-sm ${
+                  <div className={`p-4 rounded-3xl max-w-[90%] sm:max-w-[80%] shadow-sm flex items-start gap-3 border-l-4 ${
                     isSpeaker
-                      ? 'bg-blue-50 dark:bg-blue-950/60 text-slate-900 dark:text-white rounded-tl-sm border border-blue-200 dark:border-blue-900/60'
-                      : 'bg-teal-600 text-white rounded-tr-sm'
+                      ? 'bg-blue-50 dark:bg-blue-950/60 text-slate-900 dark:text-white rounded-tl-sm border-y border-r border-blue-200 dark:border-blue-900/60 border-l-blue-500'
+                      : 'bg-teal-600 text-white rounded-tr-sm border-l-teal-300 border border-teal-600'
                   }`}>
-                    <p className="text-base sm:text-lg font-medium leading-relaxed">
-                      {msg.text}
-                    </p>
+                    {isSpeaker ? (
+                      <Mic className="w-5 h-5 mt-0.5 opacity-50 flex-shrink-0" />
+                    ) : (
+                      <UserIcon className="w-5 h-5 mt-0.5 opacity-50 flex-shrink-0" />
+                    )}
+                    
+                    <div className="flex-1 space-y-2">
+                      <p className="text-base sm:text-lg font-bold leading-relaxed">
+                        {msg.text}
+                      </p>
 
-                    <div className={`mt-2 flex items-center justify-between text-xs pt-2 border-t ${
-                      isSpeaker 
-                        ? 'border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300' 
-                        : 'border-teal-500 text-teal-100'
-                    }`}>
-                      <span className="capitalize text-[11px] font-bold tracking-wider">
-                        Method: {msg.method}
-                      </span>
-                      <button
-                        onClick={() => playMessageAloud(msg.text)}
-                        className={`p-1.5 rounded-lg flex items-center gap-1 transition-colors ${
-                          isSpeaker 
-                            ? 'hover:bg-blue-100 dark:hover:bg-blue-900' 
-                            : 'hover:bg-teal-700'
-                        }`}
-                        title="Speak this message aloud"
-                        aria-label="Speak message"
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-bold">Speak</span>
-                      </button>
+                      <div className={`flex items-center justify-end text-xs pt-2 border-t ${
+                        isSpeaker 
+                          ? 'border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300' 
+                          : 'border-teal-500 text-teal-100'
+                      }`}>
+                        <button
+                          onClick={() => playMessageAloud(msg.text)}
+                          className={`p-1.5 rounded-lg flex items-center gap-1 transition-colors ${
+                            isSpeaker 
+                              ? 'hover:bg-blue-100 dark:hover:bg-blue-900' 
+                              : 'hover:bg-teal-700'
+                          }`}
+                          title="Speak this message aloud"
+                          aria-label="Speak message"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold">Speak</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -315,12 +321,12 @@ export const CommunicationModePage: React.FC = () => {
         </div>
       </section>
 
-      {/* USER RESPONSE SECTION (Person B) */}
+      {/* USER RESPONSE SECTION (You) */}
       <section className="bg-white dark:bg-[#0F172A] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-teal-900 dark:text-teal-200 font-bold text-sm">
             <span className="text-lg">⌨️</span>
-            <span>Your Response (Typing / Sign)</span>
+            <span>You</span>
           </div>
           <span className="text-xs text-slate-400 font-medium">
             Will be spoken aloud or displayed to Speaker
@@ -338,7 +344,7 @@ export const CommunicationModePage: React.FC = () => {
                 handleUserSend(true);
               }
             }}
-            placeholder="Type what you want to say to the other person..."
+            placeholder="Type what you want to say..."
             rows={3}
             className="w-full p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 text-base font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-teal-500 transition-colors"
           />
@@ -383,7 +389,7 @@ export const CommunicationModePage: React.FC = () => {
               disabled={!userText.trim()}
               className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-sm transition-all disabled:opacity-40"
             >
-              Add to Stream Only
+              Send (Text Only)
             </button>
             <button
               onClick={() => handleUserSend(true)}
@@ -391,7 +397,7 @@ export const CommunicationModePage: React.FC = () => {
               className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm shadow-md shadow-teal-600/30 flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-40"
             >
               <Volume2 className="w-4 h-4" />
-              <span>{isSpeakingOutLoud ? 'Speaking...' : 'Speak & Send'}</span>
+              <span>{isSpeakingOutLoud ? 'Speaking...' : 'Send & Speak Aloud'}</span>
             </button>
           </div>
         </div>

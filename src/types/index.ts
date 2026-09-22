@@ -159,6 +159,8 @@ export interface UserSettings {
   vibration_enabled: boolean;
   sound_alerts_enabled: boolean;
   language: 'en' | 'hi' | 'te' | 'ta' | 'gu';
+  reduced_motion?: boolean;
+  visual_alerts?: boolean;
 }
 
 export interface QuickMessage {
@@ -167,6 +169,7 @@ export interface QuickMessage {
   message: string;
   category: 'identity' | 'communication' | 'emergency' | 'navigation' | 'general';
   is_custom: boolean;
+  is_pinned?: boolean;
   created_at?: string;
 }
 
@@ -186,6 +189,13 @@ export interface SupportedSign {
   hint: string;
   defaultConfidence: number;
   category: 'greeting' | 'polite' | 'need' | 'response' | 'urgent';
+  /**
+   * Reflects the actual state of real webcam-based recognition.
+   * - 'supported'    : classified by real geometric rules; genuinely works
+   * - 'experimental' : classifier included but may be ambiguous in practice
+   * - 'unavailable'  : requires motion / Z-depth / not yet implemented
+   */
+  recognitionStatus?: 'supported' | 'experimental' | 'unavailable';
 }
 
 export type AlertSeverity = 'critical' | 'warning' | 'info';
@@ -201,13 +211,33 @@ export interface DetectedSound {
   decibels?: number;
 }
 
+export interface DocumentDeadline {
+  date: string;
+  description: string;
+}
+
+export interface DocumentImportantDetails {
+  location?: string;
+  fees?: string;
+  contact?: string;
+  eligibility?: string;
+}
+
 export interface DocumentAnalysisResult {
-  id: string;
   title: string;
   documentType: string;
-  whatIsThis: string;
-  whatDoINeed: string[];
-  deadline: string;
-  whatShouldIDo: string;
-  confidenceScore: number;
+  simpleExplanation: string;
+  keyPoints: string[];
+  deadlines: DocumentDeadline[];
+  requiredDocuments: string[];
+  requiredActions: string[];
+  importantDetails: DocumentImportantDetails;
+  warnings: string[];
 }
+
+export interface DocumentQAEntry {
+  question: string;
+  answer: string;
+  timestamp: number;
+}
+
