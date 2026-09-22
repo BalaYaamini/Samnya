@@ -135,6 +135,146 @@ export class AuthService {
     return accounts.find(a => a.email.toLowerCase() === cleanEmail) || null;
   }
 
+  // Fetch all accounts combining local account registry and Supabase profiles table
+  public async fetchAllAccounts(): Promise<StoredAccount[]> {
+    this.ensureDefaultAccountsSeeded();
+    const localAccounts = this.getStoredAccounts();
+    const accountMap = new Map<string, StoredAccount>();
+
+    localAccounts.forEach(acc => {
+      accountMap.set(acc.email.toLowerCase().trim(), acc);
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && Array.isArray(data)) {
+          data.forEach((p: any) => {
+            const email = (p.email || `${p.id}@samnya.user`).toLowerCase().trim();
+            const existing = accountMap.get(email);
+            accountMap.set(email, {
+              id: p.id || existing?.id || 'sp-' + Math.random().toString(36).substring(2, 9),
+              email: p.email || existing?.email || email,
+              password: existing?.password,
+              name: p.name || existing?.name || 'User',
+              userType: (p.user_type as UserType) || existing?.userType || 'deaf',
+              role: (p.role as UserRole) || existing?.role || 'user',
+              communicationPreferences: p.communication_preferences || existing?.communicationPreferences || ['typing'],
+              isGoogleAccount: existing?.isGoogleAccount,
+              createdAt: p.created_at || existing?.createdAt || new Date().toISOString()
+            });
+          });
+
+          // Sync back to local storage
+          const merged = Array.from(accountMap.values());
+          localStorage.setItem(ACCOUNTS_REGISTRY_KEY, JSON.stringify(merged));
+          return merged;
+        }
+      } catch (err) {
+        console.warn('Supabase fetch profiles warning:', err);
+      }
+    }
+
+    return Array.from(accountMap.values());
+  }
+
+  public async adminCreateAccount(data: {
+    name: string;
+    email: string;
+    password?: string;
+    role: UserRole;
+    userType: UserType;
+    communicationPreferences?: CommunicationMethod[];
+  }): Promise<{ success: boolean; account?: StoredAccount; error?: string }> {
+    const cleanEmail = data.email.toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: 'Please provide a valid email address.' };
+    }
+    if (!data.name.trim()) {
+      return { success: false, error: 'User name is required.' };
+    }
+
+    const existing = this.findStoredAccount(cleanEmail);
+    if (existing) {
+      return { success: false, error: 'An account with this email address already exists.' };
+    }
+
+    const newId = 'usr-' + Math.random().toString(36).substring(2, 9);
+    const prefs = data.communicationPreferences || USER_PERSONAS[data.userType]?.recommendedMethods || ['typing'];
+    const newAccount: StoredAccount = {
+      id: newId,
+      name: data.name.trim(),
+      email: cleanEmail,
+      password: data.password || '2026',
+      role: data.role,
+      userType: data.userType,
+      communicationPreferences: prefs,
+      createdAt: new Date().toISOString()
+    };
+
+    this.saveStoredAccount(newAccount);
+
+    if (isSupabaseConfigured) {
+      try {
+        await this.upsertProfile(newId, newAccount.name, newAccount.email, newAccount.userType, newAccount.role, newAccount.communicationPreferences);
+      } catch (e) {
+        console.warn('Supabase sync warning for adminCreateAccount:', e);
+      }
+    }
+
+    return { success: true, account: newAccount };
+  }
+
+  public async updateAccount(updated: StoredAccount): Promise<boolean> {
+    this.saveStoredAccount(updated);
+
+    if (isSupabaseConfigured) {
+      try {
+        await this.upsertProfile(
+          updated.id,
+          updated.name,
+          updated.email,
+          updated.userType,
+          updated.role,
+          updated.communicationPreferences
+        );
+      } catch (e) {
+        console.warn('Supabase profile update warning:', e);
+      }
+    }
+    return true;
+  }
+
+  public async deleteAccount(userId: string): Promise<{ success: boolean; error?: string }> {
+    const accounts = this.getStoredAccounts();
+    const account = accounts.find(a => a.id === userId);
+
+    if (!account) {
+      return { success: false, error: 'User account not found.' };
+    }
+
+    if (account.email.toLowerCase() === 'admin@samnya.org' || account.id === 'admin-samnya-01') {
+      return { success: false, error: 'Cannot delete primary root administrator account.' };
+    }
+
+    const filtered = accounts.filter(a => a.id !== userId);
+    localStorage.setItem(ACCOUNTS_REGISTRY_KEY, JSON.stringify(filtered));
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('profiles').delete().eq('id', userId);
+      } catch (e) {
+        console.warn('Supabase profile delete warning:', e);
+      }
+    }
+
+    return { success: true };
+  }
+
   // Check email registration status to prevent duplicate accounts
   public checkEmailRegistration(email: string): { 
     exists: boolean; 

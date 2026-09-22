@@ -902,40 +902,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           {showDemoLogins && (
             <div className="mt-3.5 space-y-4 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 animate-fadeIn">
               
-              {/* Admin Test Credential Banner */}
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="space-y-0.5">
-                  <div className="text-[11px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Admin Demo Account (Dr. Evelyn Reed)</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                    admin@samnya.org • PIN: 2026
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleCopyAdminCreds}
-                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-50 transition-colors flex items-center gap-1"
-                    title="Copy credentials"
-                  >
-                    {copiedCreds ? <Check className="w-3 h-3 text-teal-500" /> : <Copy className="w-3 h-3 text-amber-500" />}
-                    <span>{copiedCreds ? 'Copied' : 'Copy'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleQuickAdminDemo}
-                    className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] shadow-sm flex items-center gap-1 transition-all"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>1-Click Admin</span>
-                  </button>
-                </div>
-              </div>
-
               {/* 5 Persona 1-Click Demo Logins */}
               <div className="space-y-2">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center">
